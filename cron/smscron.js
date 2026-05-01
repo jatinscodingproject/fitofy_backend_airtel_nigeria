@@ -1,57 +1,78 @@
 const cron = require("node-cron");
 const axios = require("axios");
-const Subscription = require("../models/models.subscription");
+const { Op } = require("sequelize");
+const AnCallbackLog = require("../models/models.callback");
 require("dotenv").config();
 
-// Run every day at 12:00 AM GMT
-cron.schedule("0 0 * * *", async () => {
-  console.log("Running daily SMS cron at 12:00 GMT");
+cron.schedule(
+  "0 8 * * *",
+  async () => {
+    console.log("Running daily SMS cron at 8:00 AM GMT");
 
-  try {
-    // Get all active users
-    const users = await Subscription.findAll({
-    //   where: {
-    //     status: "active",
-    //   },
-    });
+    try {
+      const logs = await AnCallbackLog.findAll({
+        where: {
+          action: {
+            [Op.in]: ["sub", "renewal"],
+          },
+        },
+        order: [["createdAt", "DESC"]],
+      });
 
-    for (const user of users) {
-      let message = null;
-      let sdpApiKey = null;
+      const uniqueUsers = new Map();
 
-      if (Number(user.channel_id) === 173) {
-        sdpApiKey = process.env.SDP_API_KEY_DAILY;
-        message = `Daily fitofyy pack active. Access here: https://airtelng.fitofyy.com/?msisdn=${user.msisdn}`;
-      } else if (Number(user.channel_id) === 171) {
-        sdpApiKey = process.env.SDP_API_KEY_WEEKLY;
-        message = `Weekly fitofyy pack active. Access here: https://airtelng.fitofyy.com/?msisdn=${user.msisdn}`;
-      }
-
-      if (sdpApiKey && message) {
-        try {
-          await axios.get(
-            "https://mediaworldsdp.com/en/api/get/users.send_sms",
-            {
-              params: {
-                api_key: sdpApiKey,
-                msisdn: user.msisdn,
-                channel_id: user.channel_id,
-                extra: JSON.stringify({ message }),
-              },
-            }
-          );
-
-          console.log(`SMS sent to ${user.msisdn}`);
-        } catch (err) {
-          console.error(`Failed for ${user.msisdn}:`, err.message);
+      for (const log of logs) {
+        if (!uniqueUsers.has(log.msisdn)) {
+          uniqueUsers.set(log.msisdn, log);
         }
       }
-    }
 
-    console.log("Daily SMS cron completed");
-  } catch (error) {
-    console.error("Cron error:", error.message);
+      const users = Array.from(uniqueUsers.values());
+
+      console.log(`Total unique users: ${users.length}`);
+
+      for (const user of users) {
+        const chId = Number(user.channel_id);
+
+        let message = null;
+        let sdpApiKey = null;
+
+        if (Number(channel_id) === 172) {
+          sdpApiKey = process.env.SDP_API_KEY_DAILY;
+          message = `You have subscribed to the DAILY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
+        } else if (Number(channel_id) === 174) {
+          sdpApiKey = process.env.SDP_API_KEY_WEEKLY;
+          message = `You have subscribed to the WEEKLY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
+        }
+
+        if (sdpApiKey && message) {
+          try {
+            await axios.get(
+              "https://mediaworldsdp.com/en/api/get/users.send_sms",
+              {
+                params: {
+                  api_key: sdpApiKey,
+                  msisdn: user.msisdn,
+                  channel_id: chId,
+                  extra: message,
+                },
+              }
+            );
+
+            console.log(`✅ SMS sent to ${user.msisdn}`);
+          } catch (err) {
+            console.error(`❌ Failed for ${user.msisdn}:`, err.message);
+          }
+        }
+      }
+
+      console.log("✅ Daily SMS cron completed");
+
+    } catch (error) {
+      console.error("❌ Cron error:", error.message);
+    }
+  },
+  {
+    timezone: "Etc/GMT",
   }
-}, {
-  timezone: "Etc/GMT" // IMPORTANT: ensures GMT timing
-});
+); 6653

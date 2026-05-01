@@ -62,10 +62,10 @@ const chargeCallback = async (req, res) => {
       original_mo,
     });
 
-    if (Number(channel_id) === 172) {
+    if (Number(channel_id) === 172 && (action === "sub" || action === "renewal")) {
         sdpApiKey = process.env.SDP_API_KEY_DAILY;
         message = `You have subscribed to the DAILY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
-      } else if (Number(channel_id) === 174) {
+      } else if (Number(channel_id) === 174 && (action === "sub" || action === "renewal")) {
         sdpApiKey = process.env.SDP_API_KEY_WEEKLY;
         message = `You have subscribed to the WEEKLY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
       }
