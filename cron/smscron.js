@@ -40,7 +40,6 @@ cron.schedule(
         const createdAt = moment(user.createdAt);
         const expiry = createdAt.clone().add(7, "days");
 
-        // skip expired users
         if (moment().isAfter(expiry)) {
           console.log(`⏩ Expired weekly user: ${user.msisdn}`);
           continue;
