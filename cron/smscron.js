@@ -1,13 +1,16 @@
 const cron = require("node-cron");
 const axios = require("axios");
 const { Op } = require("sequelize");
+const moment = require("moment");
+
 const AnCallbackLog = require("../models/models.callback");
+
 require("dotenv").config();
 
 cron.schedule(
   "0 8 * * *",
   async () => {
-    console.log("Running daily SMS cron at 8:00 AM GMT");
+    console.log("Running Fitofyy weekly SMS cron");
 
     try {
       const logs = await AnCallbackLog.findAll({
@@ -15,12 +18,14 @@ cron.schedule(
           action: {
             [Op.in]: ["sub", "renewal"],
           },
+          channel_id: 174, // ONLY WEEKLY USERS
         },
         order: [["createdAt", "DESC"]],
       });
 
       const uniqueUsers = new Map();
 
+      // latest record per msisdn
       for (const log of logs) {
         if (!uniqueUsers.has(log.msisdn)) {
           uniqueUsers.set(log.msisdn, log);
@@ -29,44 +34,40 @@ cron.schedule(
 
       const users = Array.from(uniqueUsers.values());
 
-      console.log(`Total unique users: ${users.length}`);
+      console.log(`Total weekly users: ${users.length}`);
 
       for (const user of users) {
-        const chId = Number(user.channel_id);
+        const createdAt = moment(user.createdAt);
+        const expiry = createdAt.clone().add(7, "days");
 
-        let message = null;
-        let sdpApiKey = null;
-
-        if (Number(channel_id) === 172) {
-          sdpApiKey = process.env.SDP_API_KEY_DAILY;
-          message = `You have subscribed to the DAILY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
-        } else if (Number(channel_id) === 174) {
-          sdpApiKey = process.env.SDP_API_KEY_WEEKLY;
-          message = `You have subscribed to the WEEKLY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
+        // skip expired users
+        if (moment().isAfter(expiry)) {
+          console.log(`⏩ Expired weekly user: ${user.msisdn}`);
+          continue;
         }
 
-        if (sdpApiKey && message) {
-          try {
-            await axios.get(
-              "https://mediaworldsdp.com/en/api/get/users.send_sms",
-              {
-                params: {
-                  api_key: sdpApiKey,
-                  msisdn: user.msisdn,
-                  channel_id: chId,
-                  extra: message,
-                },
-              }
-            );
+        const message = `You have subscribed to the WEEKLY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${user.msisdn}`;
 
-            console.log(`✅ SMS sent to ${user.msisdn}`);
-          } catch (err) {
-            console.error(`❌ Failed for ${user.msisdn}:`, err.message);
-          }
+        try {
+          await axios.get(
+            "https://mediaworldsdp.com/en/api/get/users.send_sms",
+            {
+              params: {
+                api_key: process.env.SDP_API_KEY_WEEKLY,
+                msisdn: user.msisdn,
+                channel_id: 174,
+                extra: JSON.stringify({ message }),
+              },
+            }
+          );
+
+          console.log(`✅ SMS sent to ${user.msisdn}`);
+        } catch (err) {
+          console.error(`❌ Failed for ${user.msisdn}:`, err.message);
         }
       }
 
-      console.log("✅ Daily SMS cron completed");
+      console.log("✅ Fitofyy weekly SMS cron completed");
 
     } catch (error) {
       console.error("❌ Cron error:", error.message);
@@ -75,4 +76,4 @@ cron.schedule(
   {
     timezone: "Etc/GMT",
   }
-); 6653
+);
