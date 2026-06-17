@@ -12,4 +12,4 @@ const sequelize = new Sequelize(db_database, db_Username, db_Password, {
     logging: false,
 });
 
-module.exports = sequelize;const db_port = process.env.db_port;
+module.exports = sequelize;
