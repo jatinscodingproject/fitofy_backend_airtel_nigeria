@@ -16,7 +16,7 @@ cron.schedule(
       const logs = await AnCallbackLog.findAll({
         where: {
           action: {
-            [Op.in]: ["sub", "renewal"],
+            [Op.in]: ["sub", "renewal" , 'first_charge'],
           },
           channel_id: 174, // ONLY WEEKLY USERS
         },
