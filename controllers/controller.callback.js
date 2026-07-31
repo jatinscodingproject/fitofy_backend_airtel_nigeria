@@ -43,6 +43,26 @@ const chargeCallback = async (req, res) => {
     let sdpApiKey = null;
     let message = null;
 
+    if (action === "sub") {
+      try {
+        const callbackResponse = await axios.post(
+          "http://cb.boldmediadigital.com/ng/airtel",
+          data,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        console.log("BoldMedia Callback Success:", callbackResponse.data);
+      } catch (err) {
+        console.error(
+          "BoldMedia Callback Failed:",
+          err.response?.data || err.message
+        );
+      }
+    }
+
     // Update subscription
     if (action === "sub") {
       await Subscription.update(
