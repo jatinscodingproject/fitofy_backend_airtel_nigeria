@@ -44,24 +44,41 @@ const chargeCallback = async (req, res) => {
     let message = null;
 
     if (action === "sub") {
-      try {
-        const callbackResponse = await axios.post(
-          "http://cb.boldmediadigital.com/ng/airtel",
-          data,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        console.log("BoldMedia Callback Success:", callbackResponse.data);
-      } catch (err) {
-        console.error(
-          "BoldMedia Callback Failed:",
-          err.response?.data || err.message
-        );
-      }
+    try {
+      const payload = {
+        channel_id: channel_id,
+        user_id: user_id,
+        msisdn: msisdn,
+        notification_id: notification_id,
+        notification_time: notification_time,
+        action: action,
+        amount: amount,
+        transaction_id: transaction_id,
+        subscription_id: subscription_id,
+        orginal_mo: data.orginal_mo || "",
+      };
+
+      console.log("Sending JSON:", JSON.stringify(payload, null, 2));
+
+      const response = await axios({
+        method: "post",
+        url: "https://cb.boldmediadigital.com/ng/airtel", // Use the final URL (HTTPS if applicable)
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        data: payload,
+      });
+
+      console.log("Response:", response.data);
+    } catch (err) {
+      console.error(
+        "Callback Error:",
+        err.response?.status,
+        err.response?.data || err.message
+      );
     }
+  }
 
     // Update subscription
     if (action === "sub") {
