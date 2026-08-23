@@ -44,41 +44,133 @@ const chargeCallback = async (req, res) => {
     let message = null;
 
     if (action === "sub") {
-    try {
-      const payload = {
-        channel_id: channel_id,
-        user_id: user_id,
-        msisdn: msisdn,
-        notification_id: notification_id,
-        notification_time: notification_time,
-        action: action,
-        amount: amount,
-        transaction_id: transaction_id,
-        subscription_id: subscription_id,
-        orginal_mo: data.orginal_mo || "",
-      };
+      try {
+        const payload = {
+          channel_id: channel_id,
+          user_id: user_id,
+          msisdn: msisdn,
+          notification_id: notification_id,
+          notification_time: notification_time,
+          action: action,
+          amount: amount,
+          transaction_id: transaction_id,
+          subscription_id: subscription_id,
+          orginal_mo: data.orginal_mo || "",
+        };
 
-      console.log("Sending JSON:", JSON.stringify(payload, null, 2));
+        console.log(
+          "Sending JSON:",
+          JSON.stringify(payload, null, 2)
+        );
 
-      const response = await axios({
-        method: "post",
-        url: "https://cb.boldmediadigital.com/ng/airtel", // Use the final URL (HTTPS if applicable)
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        data: payload,
-      });
+        // =====================================================
+        // 1. SEND TO BOLD MEDIA
+        // =====================================================
 
-      console.log("Response:", response.data);
-    } catch (err) {
-      console.error(
-        "Callback Error:",
-        err.response?.status,
-        err.response?.data || err.message
-      );
+        try {
+          const response = await axios({
+            method: "post",
+            url: "https://cb.boldmediadigital.com/ng/airtel",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            data: payload,
+          });
+
+          console.log(
+            "Bold Media Response:",
+            response.data
+          );
+        } catch (err) {
+          console.error(
+            "Bold Media Callback Error:",
+            err.response?.status,
+            err.response?.data || err.message
+          );
+        }
+
+
+
+        try {
+          // IMPORTANT:
+          // This must come from the original Gridix tracked visit.
+          const cid = gridixClickId;
+
+          if (!cid) {
+            console.warn(
+              "Gridix postback skipped: cid/Gridix click ID is missing"
+            );
+          } else {
+            const gridixUrl = new URL(
+              "https://api.gridixtech.com/api/v1/postback"
+            );
+
+            gridixUrl.searchParams.set(
+              "cid",
+              cid
+            );
+
+            // Your transaction ID
+            if (transaction_id) {
+              gridixUrl.searchParams.set(
+                "txn_id",
+                String(transaction_id)
+              );
+            }
+
+            // Your internal user/customer ID
+            if (user_id) {
+              gridixUrl.searchParams.set(
+                "user_ref",
+                String(user_id)
+              );
+            }
+
+            // Subscriber MSISDN
+            if (msisdn) {
+              gridixUrl.searchParams.set(
+                "msisdn",
+                String(msisdn)
+              );
+            }
+
+            console.log(
+              "Sending Gridix Postback:",
+              gridixUrl.toString()
+            );
+
+            const gridixResponse = await axios.get(
+              gridixUrl.toString(),
+              {
+                headers: {
+                  Accept: "application/json",
+                },
+                timeout: 10000,
+              }
+            );
+
+            console.log(
+              "Gridix Response:",
+              gridixResponse.data
+            );
+          }
+        } catch (err) {
+          console.error(
+            "Gridix Postback Error:",
+            err.response?.status,
+            err.response?.data || err.message
+          );
+        }
+
+      } catch (err) {
+        console.error(
+          "Subscription Callback Error:",
+          err.response?.status,
+          err.response?.data || err.message
+        );
+      }
     }
-  }
 
     // Update subscription
     if (action === "sub") {
