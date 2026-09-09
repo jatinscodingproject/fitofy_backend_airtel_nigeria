@@ -64,7 +64,7 @@ exports.subscribe = async (req, res) => {
             }
         );
 
-        const redirectUrl = "https://arenaxpro.arbeex.com/";
+        const redirectUrl = "http://ng-airtel-web.upp.st/NAC-NGAIR-INNOV/FitnessDaily-24-Yes-40677-Web?trxId=xxx&trfsrc=yyy";
 
         return res.redirect(
             redirectUrl
