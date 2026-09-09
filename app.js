@@ -5,7 +5,6 @@ require('dotenv').config()
 const sequelize = require('./config/db');
 const PORT = process.env.PORT
 
-
 app.set('trust proxy', true);
 
 const callbackRoutes = require('./routes/routes.callback');

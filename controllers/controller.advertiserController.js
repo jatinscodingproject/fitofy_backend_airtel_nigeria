@@ -64,8 +64,7 @@ exports.subscribe = async (req, res) => {
             }
         );
 
-        const redirectUrl =
-            "https://arenaxpro.arbeex.com/";
+        const redirectUrl = "https://arenaxpro.arbeex.com/";
 
         return res.redirect(
             redirectUrl
