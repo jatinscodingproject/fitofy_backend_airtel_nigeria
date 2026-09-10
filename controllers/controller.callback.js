@@ -1,13 +1,12 @@
 const axios = require("axios");
 const AnCallbackLog = require("../models/models.callback");
 const Subscription = require("../models/models.subscription");
+const PublisherClick = require("../models/models.publisherClick");
 
 require("dotenv").config();
 
 const chargeCallback = async (req, res) => {
   console.log("API Hitted");
-
-  // Support BOTH GET query params and POST body
   const data = {
     ...req.query,
     ...req.body,
@@ -43,18 +42,22 @@ const chargeCallback = async (req, res) => {
     let sdpApiKey = null;
     let message = null;
 
+    // =========================================================
+    // SUBSCRIPTION CALLBACK
+    // =========================================================
+
     if (action === "sub") {
       try {
         const payload = {
-          channel_id: channel_id,
-          user_id: user_id,
-          msisdn: msisdn,
-          notification_id: notification_id,
-          notification_time: notification_time,
-          action: action,
-          amount: amount,
-          transaction_id: transaction_id,
-          subscription_id: subscription_id,
+          channel_id,
+          user_id,
+          msisdn,
+          notification_id,
+          notification_time,
+          action,
+          amount,
+          transaction_id,
+          subscription_id,
           orginal_mo: data.orginal_mo || "",
         };
 
@@ -63,10 +66,7 @@ const chargeCallback = async (req, res) => {
           JSON.stringify(payload, null, 2)
         );
 
-        // =====================================================
-        // 1. SEND TO BOLD MEDIA
-        // =====================================================
-
+      
         try {
           const response = await axios({
             method: "post",
@@ -90,70 +90,87 @@ const chargeCallback = async (req, res) => {
           );
         }
 
-
-
+       
         try {
-          // IMPORTANT:
-          // This must come from the original Gridix tracked visit.
-          const cid = gridixClickId;
+          const latestClick = await PublisherClick.findOne({
+            order: [["createdAt", "DESC"]],
+          });
 
-          if (!cid) {
+          if (!latestClick) {
             console.warn(
-              "Gridix postback skipped: cid/Gridix click ID is missing"
+              "Gridix postback skipped: No PublisherClick found"
             );
           } else {
-            const gridixUrl = new URL(
-              "https://api.gridixtech.com/api/v1/postback"
-            );
-
-            gridixUrl.searchParams.set(
-              "cid",
-              cid
-            );
-
-            // Your transaction ID
-            if (transaction_id) {
-              gridixUrl.searchParams.set(
-                "txn_id",
-                String(transaction_id)
-              );
-            }
-
-            // Your internal user/customer ID
-            if (user_id) {
-              gridixUrl.searchParams.set(
-                "user_ref",
-                String(user_id)
-              );
-            }
-
-            // Subscriber MSISDN
-            if (msisdn) {
-              gridixUrl.searchParams.set(
-                "msisdn",
-                String(msisdn)
-              );
-            }
+            const cid = latestClick.click_id;
 
             console.log(
-              "Sending Gridix Postback:",
-              gridixUrl.toString()
-            );
-
-            const gridixResponse = await axios.get(
-              gridixUrl.toString(),
+              "Latest Publisher Click:",
               {
-                headers: {
-                  Accept: "application/json",
-                },
-                timeout: 10000,
+                id: latestClick.id,
+                click_id: cid,
+                client: latestClick.client,
+                service: latestClick.service,
+                publisher: latestClick.publisher,
+                createdAt: latestClick.createdAt,
               }
             );
 
-            console.log(
-              "Gridix Response:",
-              gridixResponse.data
-            );
+            if (!cid) {
+              console.warn(
+                "Gridix postback skipped: click_id is missing"
+              );
+            } else {
+            
+              const gridixUrl = new URL(
+                "https://api.gridixtech.com/api/v1/postback"
+              );
+
+              gridixUrl.searchParams.set(
+                "cid",
+                String(cid)
+              );
+
+              if (transaction_id) {
+                gridixUrl.searchParams.set(
+                  "txn_id",
+                  String(transaction_id)
+                );
+              }
+
+              if (user_id) {
+                gridixUrl.searchParams.set(
+                  "user_ref",
+                  String(user_id)
+                );
+              }
+
+              if (msisdn) {
+                gridixUrl.searchParams.set(
+                  "msisdn",
+                  String(msisdn)
+                );
+              }
+
+              console.log(
+                "Sending Gridix Postback:",
+                gridixUrl.toString()
+              );
+
+              const gridixResponse = await axios.get(
+                gridixUrl.toString(),
+                {
+                  headers: {
+                    Accept: "application/json",
+                  },
+                  timeout: 10000,
+                }
+              );
+
+              console.log(
+                "Gridix Response:",
+                gridixResponse.data
+              );
+            }
           }
         } catch (err) {
           console.error(
@@ -172,7 +189,10 @@ const chargeCallback = async (req, res) => {
       }
     }
 
-    // Update subscription
+    // =========================================================
+    // UPDATE SUBSCRIPTION
+    // =========================================================
+
     if (action === "sub") {
       await Subscription.update(
         {
@@ -189,24 +209,43 @@ const chargeCallback = async (req, res) => {
       );
     }
 
-    // SMS Logic
+    // =========================================================
+    // SMS LOGIC
+    // =========================================================
+
     if (
       Number(channel_id) === 172 &&
-      (action === "sub" || action === "renewal" || action === "first_charge")
+      (
+        action === "sub" ||
+        action === "renewal" ||
+        action === "first_charge"
+      )
     ) {
       sdpApiKey = process.env.SDP_API_KEY_DAILY;
 
-      message = `You have subscribed to the DAILY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
+      message =
+        `You have subscribed to the DAILY fitofyy pack. ` +
+        `Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
+
     } else if (
       Number(channel_id) === 174 &&
-      (action === "sub" || action === "renewal" || action === "first_charge")
+      (
+        action === "sub" ||
+        action === "renewal" ||
+        action === "first_charge"
+      )
     ) {
       sdpApiKey = process.env.SDP_API_KEY_WEEKLY;
 
-      message = `You have subscribed to the WEEKLY fitofyy pack. Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
+      message =
+        `You have subscribed to the WEEKLY fitofyy pack. ` +
+        `Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
     }
 
-    // Send SMS
+    // =========================================================
+    // SEND SMS
+    // =========================================================
+
     if (sdpApiKey) {
       try {
         smsResponse = await axios.get(
@@ -216,18 +255,30 @@ const chargeCallback = async (req, res) => {
               api_key: sdpApiKey,
               msisdn,
               channel_id,
-              extra: JSON.stringify({ message }),
+              extra: JSON.stringify({
+                message,
+              }),
             },
           }
         );
 
-        console.log("SMS Response:", smsResponse.data);
+        console.log(
+          "SMS Response:",
+          smsResponse.data
+        );
+
       } catch (smsError) {
-        console.error("SMS Sending Failed:", smsError.message);
+        console.error(
+          "SMS Sending Failed:",
+          smsError.message
+        );
       }
     }
 
-    // Save callback log
+    // =========================================================
+    // SAVE CALLBACK LOG
+    // =========================================================
+
     await AnCallbackLog.create({
       user_id,
       notification_id,
@@ -245,8 +296,12 @@ const chargeCallback = async (req, res) => {
     return res.status(200).json({
       status: "ACK",
     });
+
   } catch (error) {
-    console.error("Charge callback error:", error);
+    console.error(
+      "Charge callback error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Internal Server Error",
@@ -254,4 +309,6 @@ const chargeCallback = async (req, res) => {
   }
 };
 
-module.exports = { chargeCallback };
+module.exports = {
+  chargeCallback,
+};

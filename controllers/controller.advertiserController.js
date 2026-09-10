@@ -12,10 +12,6 @@ exports.subscribe = async (req, res) => {
         } = req.query;
 
 
-        // -----------------------------
-        // Validate parameters
-        // -----------------------------
-
         if (!client) {
             return res.status(400).json({
                 success: false,
@@ -103,11 +99,6 @@ exports.subscribe = async (req, res) => {
 
 
         console.log("Redirecting to:", redirectUrl);
-
-
-        // -----------------------------
-        // Redirect
-        // -----------------------------
 
         return res.redirect(302, redirectUrl);
 
