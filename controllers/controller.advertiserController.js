@@ -41,19 +41,10 @@ exports.subscribe = async (req, res) => {
         }
 
 
-        // -----------------------------
-        // Clean values
-        // -----------------------------
-
         const cleanClient = String(client).trim();
         const cleanService = String(service).trim();
         const cleanPublisher = String(publisher).trim();
         const cleanClickId = String(clickId).trim();
-
-
-        // -----------------------------
-        // Generate random transaction ID
-        // -----------------------------
 
         const trxId = crypto
             .randomUUID()
@@ -87,10 +78,6 @@ exports.subscribe = async (req, res) => {
             trxId: trxId
         });
 
-
-        // -----------------------------
-        // Create advertiser URL
-        // -----------------------------
 
         const redirectUrl =
             "http://ng-airtel-web.upp.st/NAC-NGAIR-INNOV/FitnessDaily-24-Yes-40677-Web" +

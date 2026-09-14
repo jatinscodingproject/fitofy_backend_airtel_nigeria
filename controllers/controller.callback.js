@@ -42,157 +42,107 @@ const chargeCallback = async (req, res) => {
     let sdpApiKey = null;
     let message = null;
 
-    // =========================================================
-    // SUBSCRIPTION CALLBACK
-    // =========================================================
-
     if (action === "sub") {
       try {
-        const payload = {
-          channel_id,
-          user_id,
-          msisdn,
-          notification_id,
-          notification_time,
-          action,
-          amount,
-          transaction_id,
-          subscription_id,
-          orginal_mo: data.orginal_mo || "",
-        };
+        let gridixService = null;
 
-        console.log(
-          "Sending JSON:",
-          JSON.stringify(payload, null, 2)
-        );
-
-      
-        try {
-          const response = await axios({
-            method: "post",
-            url: "https://cb.boldmediadigital.com/ng/airtel",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            data: payload,
-          });
-
-          console.log(
-            "Bold Media Response:",
-            response.data
-          );
-        } catch (err) {
-          console.error(
-            "Bold Media Callback Error:",
-            err.response?.status,
-            err.response?.data || err.message
-          );
+        if (Number(channel_id) === 172) {
+          gridixService = "FTDL";
+        } else if (Number(channel_id) === 174) {
+          gridixService = "FTWL";
         }
 
-       
-        try {
+        if (!gridixService) {
+          console.warn(
+            `Gridix postback skipped: Unknown channel_id ${channel_id}`
+          );
+        } else {
+          /*
+          * Find the latest click belonging to the correct service.
+          *
+          * IMPORTANT:
+          * Do not use the latest PublisherClick globally.
+          * We specifically search for:
+          *
+          * FTDL -> Daily
+          * FTWL -> Weekly
+          *
+          * and the click_id must start with "clk_".
+          */
+
           const latestClick = await PublisherClick.findOne({
+            where: {
+              service: gridixService,
+              click_id: {
+                [require("sequelize").Op.like]: "clk_%",
+              },
+            },
             order: [["createdAt", "DESC"]],
           });
 
           if (!latestClick) {
             console.warn(
-              "Gridix postback skipped: No PublisherClick found"
+              `Gridix postback skipped: No click found for service ${gridixService}`
             );
           } else {
             const cid = latestClick.click_id;
 
             console.log(
-              "Latest Publisher Click:",
+              `Gridix click found for ${gridixService}:`,
+              cid
+            );
+
+            /*
+            * Gridix documentation:
+            *
+            * Required:
+            *   cid
+            *
+            * Optional:
+            *   txn_id
+            *   user_ref
+            *   msisdn
+            *
+            * We intentionally send ONLY cid.
+            */
+
+            const gridixUrl = new URL(
+              "https://api.gridixtech.com/api/v1/postback"
+            );
+
+            gridixUrl.searchParams.set("cid", String(cid));
+
+            console.log(
+              `Sending Gridix ${gridixService} Postback:`,
+              gridixUrl.toString()
+            );
+
+            const gridixResponse = await axios.get(
+              gridixUrl.toString(),
               {
-                id: latestClick.id,
-                click_id: cid,
-                client: latestClick.client,
-                service: latestClick.service,
-                publisher: latestClick.publisher,
-                createdAt: latestClick.createdAt,
+                headers: {
+                  Accept: "application/json",
+                },
+                timeout: 10000,
               }
             );
 
-            if (!cid) {
-              console.warn(
-                "Gridix postback skipped: click_id is missing"
-              );
-            } else {
-            
-              const gridixUrl = new URL(
-                "https://api.gridixtech.com/api/v1/postback"
-              );
-
-              gridixUrl.searchParams.set(
-                "cid",
-                String(cid)
-              );
-
-              if (transaction_id) {
-                gridixUrl.searchParams.set(
-                  "txn_id",
-                  String(transaction_id)
-                );
-              }
-
-              if (user_id) {
-                gridixUrl.searchParams.set(
-                  "user_ref",
-                  String(user_id)
-                );
-              }
-
-              if (msisdn) {
-                gridixUrl.searchParams.set(
-                  "msisdn",
-                  String(msisdn)
-                );
-              }
-
-              console.log(
-                "Sending Gridix Postback:",
-                gridixUrl.toString()
-              );
-
-              const gridixResponse = await axios.get(
-                gridixUrl.toString(),
-                {
-                  headers: {
-                    Accept: "application/json",
-                  },
-                  timeout: 10000,
-                }
-              );
-
-              console.log(
-                "Gridix Response:",
-                gridixResponse.data
-              );
-            }
+            console.log(
+              `Gridix ${gridixService} Response:`,
+              gridixResponse.data
+            );
           }
-        } catch (err) {
-          console.error(
-            "Gridix Postback Error:",
-            err.response?.status,
-            err.response?.data || err.message
-          );
         }
-
       } catch (err) {
         console.error(
-          "Subscription Callback Error:",
+          "Gridix Postback Error:",
           err.response?.status,
           err.response?.data || err.message
         );
       }
     }
 
-    // =========================================================
-    // UPDATE SUBSCRIPTION
-    // =========================================================
-
+   
     if (action === "sub") {
       await Subscription.update(
         {
@@ -209,10 +159,7 @@ const chargeCallback = async (req, res) => {
       );
     }
 
-    // =========================================================
-    // SMS LOGIC
-    // =========================================================
-
+   
     if (
       Number(channel_id) === 172 &&
       (

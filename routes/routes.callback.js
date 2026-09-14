@@ -6,10 +6,8 @@ const { checkSubscriptionStatus } = require('../controllers/controller.subscript
 const { checkSubscription, createSubscription } = require('../controllers/CheckSub');
 const advertiserController = require("../controllers/controller.advertiserController");
 
-
 router.get("/advertisingLanding/subscribe",advertiserController.subscribe);
 router.all('/notify-callback', chargeCallback);
-// router.post('/notify-mo-callback' , moCallback);/rs
 
 router.post("/check-status", checkSubscriptionStatus);
 
