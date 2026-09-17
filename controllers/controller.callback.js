@@ -77,7 +77,7 @@ const chargeCallback = async (req, res) => {
                 [require("sequelize").Op.like]: "clk_%",
               },
             },
-            order: [["createdAt", "DESC"]],
+            order: [["created_at", "DESC"]],
           });
 
           if (!latestClick) {
