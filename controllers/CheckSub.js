@@ -3,7 +3,7 @@ const AnCallbackLog = require("../models/models.callback");
 const crypto = require("crypto");
 exports.checkSubscription = async (req, res) => {
   try {
-    const { msisdn } = req.body;
+    const { msisdn } = req.query;
 
     if (!msisdn) {
       return res.status(400).json({

@@ -46,29 +46,14 @@ const chargeCallback = async (req, res) => {
       try {
         let gridixService = null;
 
-        if (Number(channel_id) === 172) {
-          gridixService = "FTDL";
-        } else if (Number(channel_id) === 174) {
-          gridixService = "FTWL";
-        }
+       
 
         if (!gridixService) {
           console.warn(
             `Gridix postback skipped: Unknown channel_id ${channel_id}`
           );
         } else {
-          /*
-          * Find the latest click belonging to the correct service.
-          *
-          * IMPORTANT:
-          * Do not use the latest PublisherClick globally.
-          * We specifically search for:
-          *
-          * FTDL -> Daily
-          * FTWL -> Weekly
-          *
-          * and the click_id must start with "clk_".
-          */
+          
 
           const latestClick = await PublisherClick.findOne({
             where: {
@@ -92,20 +77,7 @@ const chargeCallback = async (req, res) => {
               cid
             );
 
-            /*
-            * Gridix documentation:
-            *
-            * Required:
-            *   cid
-            *
-            * Optional:
-            *   txn_id
-            *   user_ref
-            *   msisdn
-            *
-            * We intentionally send ONLY cid.
-            */
-
+           
             const gridixUrl = new URL(
               "https://api.gridixtech.com/api/v1/postback"
             );
@@ -188,10 +160,6 @@ const chargeCallback = async (req, res) => {
         `You have subscribed to the WEEKLY fitofyy pack. ` +
         `Here you can access it https://airtelng.fitofyy.com/?msisdn=${msisdn}`;
     }
-
-    // =========================================================
-    // SEND SMS
-    // =========================================================
 
     if (sdpApiKey) {
       try {
