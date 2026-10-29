@@ -51,8 +51,8 @@ exports.checkSubscription = async (req, res) => {
     ).toUpperCase();
 
     if (
-      action === "UNSUBSCRIBE" ||
-      action === "DEACTIVATE"
+      action === "renewal" ||
+      action === "sub" || action === "first_charge"
     ) {
       return res.json({
         success: true,
