@@ -3,7 +3,8 @@ const AnCallbackLog = require("../models/models.callback");
 const crypto = require("crypto");
 exports.checkSubscription = async (req, res) => {
   try {
-    const { msisdn } = req.query;
+    console.log("request reached =============================")
+    const { msisdn } = req.body;
 
     if (!msisdn) {
       return res.status(400).json({
@@ -12,7 +13,6 @@ exports.checkSubscription = async (req, res) => {
       });
     }
 
-    // Test Number
     if (msisdn === "7039594389") {
       const token = jwt.sign(
         {
